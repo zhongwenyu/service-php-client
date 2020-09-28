@@ -1,0 +1,20 @@
+{
+    "name": "ybrenlib/serviceClient",
+    "authors": [
+        {
+            "name": "zhongwenyu",
+            "email": "zhongwenyu@beidukeji.com"
+        }
+    ],
+    "require": {
+        "ybrenlib/registercenter" : "~1.0.0",
+        "aliyunmq/mq-http-sdk": "1.0.1",
+        "ybrenlib/zipkinphp": "~1.1.0",
+        "ybrenlib/apollo-client-php": "~1.0.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "ybrenLib\\serviceClient\\": "src\\ybrenLib\\serviceClient"
+        }
+    }
+}
