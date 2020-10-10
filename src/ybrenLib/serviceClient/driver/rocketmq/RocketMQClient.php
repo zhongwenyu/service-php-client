@@ -28,7 +28,7 @@ class RocketMQClient{
     /**
      * @var AliyunRocketMQConnectConfig
      */
-    private $rocketmqConnectConfig;
+    private $rocketMQConnectConfig;
     
     /**
      * @var \MQ\MQTransProducer
@@ -62,8 +62,11 @@ class RocketMQClient{
      * @return HttpClient
      */
     private function getHttpClient(){
-        return $this->httpClient ?? new HttpClient($this->rocketMQConnectConfig->getEndPoint(), $this->rocketMQConnectConfig->getAccessKey(),
+        if(is_null($this->httpClient)){
+            $this->httpClient = new HttpClient($this->rocketMQConnectConfig->getEndPoint(), $this->rocketMQConnectConfig->getAccessKey(),
                 $this->rocketMQConnectConfig->getSecretKey(), null, null);
+        }
+        return $this->httpClient;
     }
     
     public function getMessageKey(){
@@ -92,7 +95,8 @@ class RocketMQClient{
      */
     public function getTransactionProducer(){
         if(is_null($this->transactionProducer)){
-            $this->transactionProducer = $this->client->getTransProducer($this->instanceId , "common_transaction" , "GID_transaction");
+            $this->transactionProducer = $this->client->getTransProducer($this->instanceId ,
+                $this->rocketMQConnectConfig->getTopicTransaction() , $this->rocketMQConnectConfig->getGrouIdTransaction());
         }
         return $this->transactionProducer;
     }
@@ -103,7 +107,7 @@ class RocketMQClient{
      */
     public function getNormalProducer(){
         if(is_null($this->normalProducer)){
-            $this->normalProducer = $this->client->getProducer($this->instanceId , "common_normal");
+            $this->normalProducer = $this->client->getProducer($this->instanceId , $this->rocketMQConnectConfig->getTopicNormal());
         }
         return $this->normalProducer;
     }
@@ -114,7 +118,7 @@ class RocketMQClient{
      */
     public function getDelayProducer(){
         if(is_null($this->delayProducer)){
-            $this->delayProducer = $this->client->getProducer($this->instanceId , "common_delay" );
+            $this->delayProducer = $this->client->getProducer($this->instanceId , $this->rocketMQConnectConfig->getTopicDelay());
         }
         return $this->delayProducer;
     }
@@ -126,7 +130,7 @@ class RocketMQClient{
      */
     public function sendTransactionMsg(array $messageBody){
         $result = $this->sendMsg($this->getTransactionProducer() , MessageQueueType::TRANSACTION , $messageBody);
-        return $result->getReceiptHandle();
+        return $result;
     }
 
     /**
@@ -192,6 +196,12 @@ class RocketMQClient{
             $pubMsg->setStartDeliverTime($sendTime); //毫秒
         }
 
+        switch ($messageType){
+            case MessageQueueType::TRANSACTION:
+                $pubMsg->setTransCheckImmunityTime(10);
+                break;
+        }
+
         $result = null;
         try{
             $result = $MQProducer->publishMessage($pubMsg);
@@ -214,8 +224,8 @@ class RocketMQClient{
      * @return \MQ\Responses\AckMessageResponse
      */
     public function commit(array $receiptHandles){
-        $request = new AckMessageRequest($this->instanceId, $this->rocketmqConnectConfig->getTopicTransaction(),
-            $this->rocketmqConnectConfig->getGrouIdTransaction(), $receiptHandles);
+        $request = new AckMessageRequest($this->instanceId, $this->rocketMQConnectConfig->getTopicTransaction(),
+            $this->rocketMQConnectConfig->getGrouIdTransaction(), $receiptHandles);
         $request->setTrans(Constants::TRANSACTION_COMMIT);
         $response = new AckMessageResponse();
         return $this->getHttpClient()->sendRequest($request, $response);
@@ -223,10 +233,14 @@ class RocketMQClient{
 
     /**
      * 事务回滚
-     * @param $receiptHandle
+     * @param array $receiptHandles
      */
-    public function rollback($receiptHandle){
-        $this->transactionProducer->rollback($receiptHandle);
+    public function rollback(array $receiptHandles){
+        $request = new AckMessageRequest($this->instanceId, $this->rocketMQConnectConfig->getTopicTransaction(),
+            $this->rocketMQConnectConfig->getGrouIdTransaction(), $receiptHandles);
+        $request->setTrans(Constants::TRANSACTION_ROLLBACK);
+        $response = new AckMessageResponse();
+        return $this->getHttpClient()->sendRequest($request, $response);
     }
 
     public function getUniqueId($type = ""){

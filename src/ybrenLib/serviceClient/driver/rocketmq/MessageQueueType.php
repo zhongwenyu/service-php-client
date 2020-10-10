@@ -18,6 +18,6 @@ class MessageQueueType{
     // 延时消息
     const DELAY = 4;
 
-    // 事务提交
-    const COMMIT = 5;
+    // 事务消息(不需要前置检查)
+    const TRANSACTION_UNCHECK = 5;
 }

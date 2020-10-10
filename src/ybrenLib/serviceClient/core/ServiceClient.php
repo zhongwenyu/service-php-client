@@ -32,7 +32,8 @@ class ServiceClient{
      * @return mixed
      * @throws ServiceImplNotFoundException
      */
-    public function request($serivceImplClass , $serviceName , $requestUri , $httpMode , $data , $option = []){
+    public function request($serivceImplClass , $serviceName , $requestUri , $httpMode , $dataType , $data , $option =
+    []){
         $serviceImpl = null;
         switch ($serivceImplClass){
             case ServiceImpl::Rest:
@@ -47,7 +48,7 @@ class ServiceClient{
             throw new ServiceImplNotFoundException("service impl [".$serivceImplClass."] is not exist");
         }
         
-        return $serviceImpl->sendHttpRequst($serviceName , $requestUri , $httpMode , $data , $option);
+        return $serviceImpl->sendHttpRequst($serviceName , $requestUri , $httpMode , $dataType , $data , $option);
     }
 
     /**

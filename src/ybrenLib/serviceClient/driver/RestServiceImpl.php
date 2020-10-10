@@ -35,7 +35,7 @@ $data, array $option = []){
         $url = sprintf("http://%s:%s/%s" , $instance->getIp() , $instance->getPort() , $requestUri);
 
         // 请求服务节点
-        $response = HttpRequestUtil::request($httpMode , $url , $dataType , $this->timeout , [
+        $response = HttpRequestUtil::request($httpMode , $url , $data , $dataType , $this->timeout , [
             'Accept' => 'application/json',
         ] , true);
 
@@ -44,7 +44,6 @@ $data, array $option = []){
                 $exceptionClass = (isset($response['Exception']) && class_exists("ybrenLib\\serviceClass\\exception\\".$response['Exception'])) ? "ybrenLib\\serviceClass\\exception\\".$response['Exception'] : "ybrenLib\\serviceClient\\exception\\RestRequestException";
                 throw new $exceptionClass(($response['ErrorMsg'] ?? "") , ($response['Code'] ?? 401));
             }
-            return $response['Data'] ?? null;
         }
 
         return $response;

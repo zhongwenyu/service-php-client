@@ -55,7 +55,8 @@ class HttpRequestUtil{
                 $requestOptions['body'] = $data;
                 break;
         }
-        !empty($headers) && $requestOptions['headers'] = $headers;
+
+        (is_array($headers) && !empty($headers)) && $requestOptions['headers'] = $headers;
 
         $response = null;
         $jsonResponseBody = null;
