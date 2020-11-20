@@ -34,10 +34,15 @@ $data, array $option = []){
         // 组装url
         $url = sprintf("http://%s:%s/%s" , $instance->getIp() , $instance->getPort() , $requestUri);
 
-        // 请求服务节点
-        $response = HttpRequestUtil::request($httpMode , $url , $data , $dataType , $this->timeout , [
+        $headers = [
             'Accept' => 'application/json',
-        ] , true);
+        ];
+        if(isset($option['header']) && is_array($option['header'])){
+            $headers = array_merge($headers , $option['header']);
+        }
+
+        // 请求服务节点
+        $response = HttpRequestUtil::request($httpMode , $url , $data , $dataType , $this->timeout , $headers , true);
 
         if($response != null && is_array($response) && isset($response['Status'])){
             if($response['Status'] == 0){
