@@ -1,7 +1,9 @@
 <?php
 namespace ybrenLib\serviceClient\driver;
 
+use ybrenLib\registerCenter\core\driver\eureka\discovery\DiscoveryStrategy;
 use ybrenLib\registerCenter\core\RegisterCenterClient;
+use ybrenLib\serviceClient\driver\rest\GrayBuildAndRandomStrategy;
 use ybrenLib\serviceClient\exception\InstanceNotFoundException;
 use ybrenLib\serviceClient\utils\HttpRequestUtil;
 
@@ -17,15 +19,21 @@ class RestServiceImpl implements Service {
      * @var RegisterCenterClient
      */
     private $registerCenterClient;
+
+    /**
+     * @var DiscoveryStrategy
+     */
+    private $discoveryStrategy;
     
     public function __construct(){
         $this->registerCenterClient = new RegisterCenterClient();
+        $this->discoveryStrategy = new GrayBuildAndRandomStrategy();
     }
 
     public function sendHttpRequst(string $serviceName, string $requestUri, string $httpMode, string $dataType, array 
 $data, array $option = []){
         // 获取服务节点
-        $instance = $this->registerCenterClient->getInstance($serviceName);
+        $instance = $this->registerCenterClient->getInstance($serviceName , $this->discoveryStrategy);
         
         if(empty($instance)){
             throw new InstanceNotFoundException("service [".$serviceName."] instance is empty");
@@ -34,15 +42,10 @@ $data, array $option = []){
         // 组装url
         $url = sprintf("http://%s:%s/%s" , $instance->getIp() , $instance->getPort() , $requestUri);
 
-        $headers = [
-            'Accept' => 'application/json',
-        ];
-        if(isset($option['header']) && is_array($option['header'])){
-            $headers = array_merge($headers , $option['header']);
-        }
-
         // 请求服务节点
-        $response = HttpRequestUtil::request($httpMode , $url , $data , $dataType , $this->timeout , $headers , true);
+        $response = HttpRequestUtil::request($httpMode , $url , $data , $dataType , $this->timeout , [
+            'Accept' => 'application/json',
+        ] , true);
 
         if($response != null && is_array($response) && isset($response['Status'])){
             if($response['Status'] == 0){

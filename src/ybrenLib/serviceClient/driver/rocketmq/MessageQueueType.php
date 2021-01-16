@@ -20,4 +20,10 @@ class MessageQueueType{
 
     // 事务消息(不需要前置检查)
     const TRANSACTION_UNCHECK = 5;
+
+    // 提交事务
+    const COMMIT = 6;
+
+    // 回滚事务
+    const ROLLBACK = 7;
 }

@@ -10,11 +10,18 @@
         "ybrenlib/registercenter" : "~1.0.0",
         "aliyunmq/mq-http-sdk": "1.0.1",
         "ybrenlib/zipkinphp": "~1.1.0",
-        "ybrenlib/apollo-client-php": "~1.0.1"
+        "ybrenlib/apollo-client-php": "~1.0.1",
+        "ybrenlib/rocketmq" : "~1.0.0"
     },
     "autoload": {
         "psr-4": {
             "ybrenLib\\serviceClient\\": "src\\ybrenLib\\serviceClient"
         }
+    },
+    "config": {
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "optimize-autoloader": true,
+        "secure-http": false
     }
 }

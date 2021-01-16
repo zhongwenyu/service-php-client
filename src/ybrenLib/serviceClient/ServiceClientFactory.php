@@ -10,6 +10,8 @@ class ServiceClientFactory{
      */
     private static $serviceClient = null;
 
+    private static $fallback = null;
+
     /**
      * @return ServiceClient
      */

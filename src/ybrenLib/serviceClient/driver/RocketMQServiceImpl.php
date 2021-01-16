@@ -2,10 +2,13 @@
 namespace ybrenLib\serviceClient\driver;
 
 use ybrenLib\logger\LoggerFactory;
+use ybrenLib\rocketmq\entity\TransactionSendResult;
+use ybrenLib\rocketmq\producer\MQProducerFallback;
 use ybrenLib\serviceClass\core\ServiceApiClient;
 use ybrenLib\serviceClient\core\TransactionManagement;
 use ybrenLib\serviceClient\driver\rocketmq\MessageQueueType;
 use ybrenLib\serviceClient\driver\rocketmq\RocketMQClient;
+use ybrenLib\serviceClient\driver\rocketmq\RocketMQProducer;
 use ybrenLib\serviceClient\driver\rocketmq\RocketMQTransactionHandle;
 use ybrenLib\serviceClient\ServiceClientFactory;
 use ybrenLib\serviceClient\utils\HttpMode;
@@ -16,19 +19,18 @@ class RocketMQServiceImpl implements Service {
     private $log;
 
     /**
-     * @var RocketMQClient
+     * @var RocketMQProducer
      */
-    private $rocketMQClient;
+    private $rorkcetMQProducer;
 
     /**
-     * @var RocketMQTransactionHandle
+     * @var TransactionSendResult[]
      */
-    private $rocketMQTransactionHandle;
+    private $transactionSendResults = [];
 
     public function __construct(){
         $this->log = LoggerFactory::getLogger(RocketMQServiceImpl::class);
-        $this->rocketMQClient = new RocketMQClient();
-        $this->rocketMQTransactionHandle = new RocketMQTransactionHandle($this->rocketMQClient);
+        $this->orkcetMQProducer = new RocketMQProducer();
     }
 
     /**
@@ -55,30 +57,40 @@ class RocketMQServiceImpl implements Service {
 
         $response = null;
         switch ($messageQueueType){
+            case MessageQueueType::COMMIT:
+                // 提交事务
+                $this->rorkcetMQProducer->commit($this->transactionSendResults);
+                $this->transactionSendResults = [];
+                break;
+            case MessageQueueType::ROLLBACK:
+                // 回滚事务
+                $this->rorkcetMQProducer->rollback($this->transactionSendResults);
+                $this->transactionSendResults = [];
+                break;
             case MessageQueueType::NORMAL:
                 // 普通消息
-                $response = $this->rocketMQClient->sendNormalMsg($messageBody);
-                $this->log->info("send normal message ".$response->getMessageId());
+                $response = $this->rorkcetMQProducer->sendMessage($messageBody , false);
+                $this->log->info("send normal message ".$response->getMsgKeys());
                 break;
             case MessageQueueType::TRANSACTION_UNCHECK:
                 // 事务消息
-                $response = $this->rocketMQClient->sendTransactionMsg($messageBody);
+                $response = $this->rorkcetMQProducer->sendMessage($messageBody , true);
                 $this->addTransaction($response);
-                $this->log->info("send transaction message ".$response->getMessageId());
+                $this->log->info("send transaction message ".$response->getMsgKeys());
                 break;
             case MessageQueueType::TRANSACTION:
                 // 事务消息
                 // 前置检查
                 $this->transactionMessagePrecheck($serviceName , $requestUri , $data);
-                $response = $this->rocketMQClient->sendTransactionMsg($messageBody);
-                $this->addTransaction($response->getReceiptHandle());
-                $this->log->info("send transaction message ".$response->getMessageId());
+                $response = $this->rorkcetMQProducer->sendMessage($messageBody , true);
+                $this->addTransaction($response);
+                $this->log->info("send transaction message ".$response->getMsgKeys());
                 break;
-            case MessageQueueType::DELAY:
+            /*case MessageQueueType::DELAY:
                 // 延时消息
                 $response = $this->rocketMQClient->sendDelayMsg($messageBody , $messageQueueParams);
-                $this->log->info("send delay message ".$response->getMessageId());
-                break;
+                $this->log->info("send delay message ".$response->getMsgKeys());
+                break;*/
         }
 
         return $response;
@@ -103,12 +115,9 @@ class RocketMQServiceImpl implements Service {
     }
 
     /**
-     * @param $receiptHandle
+     * @param TransactionSendResult $transactionSendResult
      */
-    private function addTransaction($receiptHandle){
-        // 添加事务处理器
-        TransactionManagement::addTransactionHandle($this->rocketMQTransactionHandle , "rocketMQTransactionHandle");
-        // 添加事务权柄
-        $this->rocketMQTransactionHandle->addReceiptHandle($receiptHandle);
+    private function addTransaction(TransactionSendResult $transactionSendResult){
+        $this->transactionSendResults[] = $transactionSendResult;
     }
 }
