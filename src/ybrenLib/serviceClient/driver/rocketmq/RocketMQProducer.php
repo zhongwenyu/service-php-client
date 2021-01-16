@@ -15,6 +15,7 @@ class RocketMQProducer
      */
     private $transactionMQProducer;
     private $topic;
+    private $transactionId = null;
 
     public function __construct(){
         $rocketMQClusterConfig = RocketMQConfig::getRocketMQClusterConfig();
@@ -33,6 +34,7 @@ class RocketMQProducer
      * @param TransactionSendResult[]
      */
     public function commit(array $transactionSendResults){
+        LoggerFactory::getLogger(RocketMQProducer::class)->info("commit transaction: {}" , $this->transactionId);
         if(!empty($transactionSendResults)){
             foreach ($transactionSendResults as $transactionSendResult){
                 try{
@@ -46,12 +48,14 @@ class RocketMQProducer
                 }
             }
         }
+        $this->transactionId = null;
     }
 
     /**
      * @param TransactionSendResult[]
      */
     public function rollback(array $transactionSendResults){
+        LoggerFactory::getLogger(RocketMQProducer::class)->info("rollback transaction: {}" , $this->transactionId);
         if(!empty($transactionSendResults)){
             foreach ($transactionSendResults as $transactionSendResult){
                 try{
@@ -65,6 +69,7 @@ class RocketMQProducer
                 }
             }
         }
+        $this->transactionId = null;
     }
 
     /**
@@ -76,7 +81,7 @@ class RocketMQProducer
      */
     public function sendMessage($messageBody , $isTransaction = false){
         $message = new Message($this->topic , "");
-        $messageKey = $this->getUniqueId();
+        $messageKey = $this->getUniqueId("messageKey");
         // zipkin start
         $producerZipkinBean = new ProducerZipkinBean();
         $producerZipkinBean->setMessageKey($messageKey);
@@ -92,9 +97,15 @@ class RocketMQProducer
 
         try{
             if($isTransaction){
-                $sendResult = $this->transactionMQProducer->send($message);
-            }else{
+                if(is_null($this->transactionId)){
+                    $this->transactionId = $this->getUniqueId("transactionId");
+                    LoggerFactory::getLogger(RocketMQProducer::class)->info("start transaction: {}" , $this->transactionId);
+                }
+                // 设置事务id
+                $message->setTransactionId($this->transactionId);
                 $sendResult = $this->transactionMQProducer->sendMessageInTransaction($message);
+            }else{
+                $sendResult = $this->transactionMQProducer->send($message);
             }
             ZipkinHandler::produceEnd($childSpan , $producerZipkinBean);
         }catch (\Exception $e){
@@ -106,6 +117,6 @@ class RocketMQProducer
     }
 
     private function getUniqueId($type = ""){
-        return md5("rocketMQ:".$type.":messageKey:".uniqid(rand() , true));
+        return strtoupper(md5("rocketMQ:".$type.":messageKey:".uniqid(rand() , true)));
     }
 }
